@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2196f3">
+  <title>PWA Template</title>
+
+  <!-- PWA Link to Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <style>
+    :root {
+      --primary: #2196f3;
+      --bg: #f4f4f9;
+      --text: #333;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 320px;
+      width: 100%;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: #666;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>My PWA</h1>
+    <p>A lightweight, offline-ready progressive web app template.</p>
+    <button id="action-btn">Click Me</button>
+    <div id="status" class="status">Checking offline status...</div>
+  </div>
+
+  <script>
+    // 1. Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('Service Worker registered:', reg.scope))
+          .catch((err) => console.error('Service Worker registration failed:', err));
+      });
+    }
+
+    // 2. Offline Status Monitoring
+    const statusDiv = document.getElementById('status');
+    function updateOnlineStatus() {
+      statusDiv.textContent = navigator.onLine ? 'Status: Online' : 'Status: Offline (Cached mode)';
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    // 3. Simple Interaction
+    document.getElementById('action-btn').addEventListener('click', () => {
+      alert('App is running and responding to user action!');
+    });
+  </script>
+</body>
+</html>
