@@ -1,6 +1,6 @@
 {
-  "short_name": "App",
-  "name": "My Progressive Web App",
+  "short_name": "My App",
+  "name": "My Peer to Peer App",
   "icons": [
     {
       "src": "icon-192.png",
@@ -14,7 +14,9 @@
     }
   ],
   "start_url": ".",
-  "background_color": "#ffffff",
-  "theme_color": "#2196f3",
-  "display": "standalone"
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "display": "standalone",
+  "orientation": "landscape",
+  "scope": "/"
 }

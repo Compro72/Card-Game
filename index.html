@@ -1,94 +1,126 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#2196f3">
-  <title>PWA Template</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC P2P Lobby</title>
 
-  <!-- PWA Link to Manifest -->
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
-
-  <style>
-    :root {
-      --primary: #2196f3;
-      --bg: #f4f4f9;
-      --text: #333;
-    }
-
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-
-    .card {
-      background: #fff;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-      max-width: 320px;
-      width: 100%;
-    }
-
-    button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 6px;
-      font-size: 1rem;
-      cursor: pointer;
-      margin-top: 1rem;
-    }
-
-    .status {
-      font-size: 0.85rem;
-      color: #666;
-      margin-top: 1rem;
-    }
-  </style>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
 
-  <div class="card">
-    <h1>My PWA</h1>
-    <p>A lightweight, offline-ready progressive web app template.</p>
-    <button id="action-btn">Click Me</button>
-    <div id="status" class="status">Checking offline status...</div>
-  </div>
+<body onclick="goFullscreen()">
+    <div id="lobby-container">
 
-  <script>
-    // 1. Register Service Worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then((reg) => console.log('Service Worker registered:', reg.scope))
-          .catch((err) => console.error('Service Worker registration failed:', err));
-      });
-    }
+        <div id="first-lobby">
+            <div class="section">
+                <div>My ID: <span id="my-id" class="id">loading...</span></div>
+            </div>
 
-    // 2. Offline Status Monitoring
-    const statusDiv = document.getElementById('status');
-    function updateOnlineStatus() {
-      statusDiv.textContent = navigator.onLine ? 'Status: Online' : 'Status: Offline (Cached mode)';
-    }
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus();
+            <hr>
 
-    // 3. Simple Interaction
-    document.getElementById('action-btn').addEventListener('click', () => {
-      alert('App is running and responding to user action!');
-    });
-  </script>
+            <div class="section">
+                <button id="create-room" class="btn" onclick="createRoom()">Create Room</button>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <h3 id="available-rooms">Available Rooms (0)</h3>
+            </div>
+
+            <div class="section">
+                <ul id="rooms-list"></ul>
+            </div>
+        </div>
+
+        <div id="second-lobby">
+            <div class="section">
+                <div>My ID: <span id="my-id-second" class="id">loading...</span></div>
+                <div>Host ID: <span id="host-id" class="id">loading...</span></div>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <div>Room ID: <span id="room-id" class="id">loading...</span></div>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <button id="leave-room" class="btn" onclick="leaveRoom()">Leave Room</button>
+                <button id="start-room" class="btn" onclick="start()">Start Room</button>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <h3 id="players-joined">Players Joined (1)</h3>
+            </div>
+
+            <div class="section">
+                <ul id="players-list"></ul>
+            </div>
+        </div>
+
+
+        <!--
+
+        <hr class="info-divider">
+
+        <div class="state-lobby">
+            <div class="section">
+                <button class="btn btn-primary" onclick="createRoom()">Create Room</button>
+            </div>
+
+            <hr>
+
+            <div class="section">
+                <h3>Rooms</h3>
+                <ul id="roomsList"></ul>
+            </div>
+        </div>
+
+        <div class="state-room">
+            <div class="section row-align">
+                <h3 id="joinedRoom"><span class="null-text">null</span></h3>
+                <button class="btn btn-danger" onclick="leaveRoom()">Leave Room</button>
+            </div>
+
+            <hr>
+            <div class="section row-align">
+                <button class="btn btn-success" onclick="start()">Start</button>
+            </div>
+            <hr>
+        </div>-->
+
+    </div>
+
+    <div id="game-area">
+        <canvas id="main-canvas"></canvas>
+        <div id="player-bar"></div>
+    </div>
+
+    <script>
+        const scripts = ["./network/connector.js", "./network/p2p.js", "main.js"];
+
+        scripts.forEach(file => {
+            const script = document.createElement("script");
+            script.src = `${file}?t=${Date.now()}`;
+            script.async = false;
+            document.body.appendChild(script);
+        });
+
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js');
+            });
+        }
+    </script>
 </body>
+
 </html>
