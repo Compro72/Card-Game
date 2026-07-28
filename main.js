@@ -240,7 +240,7 @@ window.addEventListener("mouseup", (event) => {
 });
 
 window.addEventListener("resize", (event) => {
-    canvas.width = window.innerHeight*(16/9);
+    canvas.width = window.innerWidth;
     canvas.height = window.innerHeight - 80;
     hands.forEach(hand => {
         hand.reposition();
