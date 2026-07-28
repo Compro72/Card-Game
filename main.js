@@ -73,10 +73,10 @@ function updateView() {
 
             const textSpan = document.createElement("span");
             if (item === channels.id) {
-                textSpan.textContent = "Player ID: " + item + " (You)" + " " + channels.getJoinRank(item);
+                textSpan.textContent = "Player ID: " + item + " (You)";
                 textSpan.style.border = "3px solid green";
             } else {
-                textSpan.textContent = "Player ID: " + item + " " + channels.getJoinRank(item);
+                textSpan.textContent = "Player ID: " + item;
             }
 
             textSpan.className = "id";
@@ -130,14 +130,16 @@ function updateView() {
 }
 
 function start() {
-    if (channels.numPeers >= 2) {
-        channels.start();
-    }
+    //if (channels.numPeers >= 2) {
+    channels.start();
+    //}
 }
 
 connector.onRoomStart = () => {
     document.getElementById("lobby-container").style.display = "none";
-    initialize();
+    if (channels.isHost()) {
+        initialize(Date.now());
+    }
 };
 
 
@@ -166,21 +168,35 @@ connector.onRoomStart = () => {
 let canvas = document.getElementById("main-canvas");
 let ctx = canvas.getContext("2d");
 
-let prevTime = 0;
+let prevTime = performance.now();
 let deltaTime = 0;
 let fps = 60;
 
 let mouseX = 0;
 let mouseY = 0;
+let prevMouseDown = false;
+let mouseDown = false;
 
-let seed;
+let gameSeed;
 
+const suits = ["♠", "♥", "♣", "♦"];
+const values = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
+
+let deck;
+let myRank;
+let hands = [];
+let myHand;
+
+let CARD_WIDTH = 90;
+let CARD_HEIGHT = 126;
+
+let frameNumber = 0;
 
 
 function updateMousePosition(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    mouseX = ((clientX - rect.left) / rect.width) * canvas.width;
-    mouseY = ((clientY - rect.top) / rect.height) * canvas.height;
+    mouseX = (((clientX - rect.left) / rect.width) * canvas.width) - (canvas.width / 2);
+    mouseY = (canvas.height / 2) - (((clientY - rect.top) / rect.height) * canvas.height);
 }
 
 window.addEventListener("mousemove", (e) => {
@@ -198,6 +214,7 @@ window.addEventListener("touchstart", (e) => {
         e.preventDefault();
     }
     handleTouch(e);
+    mouseDown = true;
 }, { passive: false });
 
 window.addEventListener("touchmove", (e) => {
@@ -207,85 +224,35 @@ window.addEventListener("touchmove", (e) => {
     handleTouch(e);
 }, { passive: false });
 
-window.addEventListener('resize', (event) => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+window.addEventListener("touchend", (e) => {
+    if (e.target === canvas) {
+        e.preventDefault();
+    }
+    mouseDown = false;
+}, { passive: false });
+
+window.addEventListener("mousedown", (event) => {
+    mouseDown = true;
 });
 
+window.addEventListener("mouseup", (event) => {
+    mouseDown = false;
+});
 
-
-function initialize() {
-    document.getElementById("game-area").style.display = "flex";
-    Object.keys(channels.timestamps).forEach((item) => {
-        let playerName = document.createElement("div");
-        playerName.className = "player-name";
-        playerName.innerHTML = item + (item === channels.id ? " (You)" : "");
-        document.getElementById("player-bar").appendChild(playerName);
+window.addEventListener("resize", (event) => {
+    canvas.width = window.innerHeight*(16/9);
+    canvas.height = window.innerHeight - 80;
+    hands.forEach(hand => {
+        hand.reposition();
     });
-
-    if (channels.isHost()) {
-        seed = Date.now();
-        deck = createAndShuffleDeck(seed);
-        hand = getHand(deck, channels.getJoinRank(channels.id), channels.numPeers);
-        console.log(hand);
-        channels.broadcastData(JSON.stringify({
-            type: "seed",
-            seed: seed
-        }));
-    }
-
-    requestAnimationFrame(loop);
-}
-
-
-const suits = ["♠", "♥", "♣", "♦"];
-const values = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
-let deck;
-let hand;
-
-let CARD_WIDTH = 90;
-let CARD_HEIGHT = 126;
-
-function drawCard(x, y, isFaceDown = false, value = "A", suit = "♠", heightOffset = 0, scaleX = 1.0, angle = 0) {
-    ctx.save();
-
-    ctx.translate(x + CARD_WIDTH / 2, y + CARD_HEIGHT / 2);
-    if (angle !== 0) ctx.rotate(angle);
-    if (scaleX !== 1.0) ctx.scale(scaleX, 1.0);
-    ctx.translate(-(x + CARD_WIDTH / 2), -(y + CARD_HEIGHT / 2));
-
-    const radius = Math.max(4, Math.floor(CARD_WIDTH * 0.09));
-
-    if (isFaceDown) {
-        ctx.fillStyle = "#201b5a";
-        ctx.beginPath();
-        ctx.roundRect(x, y, CARD_WIDTH, CARD_HEIGHT, radius);
-        ctx.fill();
-
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-        ctx.lineWidth = 8;
-        ctx.strokeRect(x + 10, y + 10, CARD_WIDTH - 20, CARD_HEIGHT - 20);
-    } else {
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.roundRect(x, y, CARD_WIDTH, CARD_HEIGHT, radius);
-        ctx.fill();
-
-        ctx.fillStyle = (suit === "♥" || suit === "♦") ? "#ff0000" : "#000000";
-        const fontSize = Math.max(11, Math.floor(CARD_WIDTH * 0.3));
-        ctx.font = `bold ${fontSize}px -apple-system, sans-serif`;
-        ctx.fillText(`${value} ${suit}`, x + CARD_WIDTH * 0.08, y + fontSize * 1.15);
-    }
-
-    ctx.restore();
-}
+});
 
 
 function createAndShuffleDeck(seed) {
     let deck = [];
     values.forEach(value => {
         suits.forEach(suit => {
-            deck.push([value, suit]);
+            deck.push(new Card(value, suit, 0, 0, true));
         });
     });
 
@@ -301,25 +268,82 @@ function createAndShuffleDeck(seed) {
 }
 
 
-function getHand(deck, offset, stride) {
-    let hand = [];
-    for (let i = offset; i < deck.length; i += stride) {
-        hand.push([deck[i][0], deck[i][1]]);
-    }
-    return hand
-}
+// function animateDealing() {
+//     for (let i = 0; i < deck.length; i++) {
+//         let
+//     }
+// }
 
+let ratio = screen.width/(screen.height-80);
+
+function initialize(seed) {
+    document.getElementById("game-area").style.display = "flex";
+    Object.keys(channels.timestamps).forEach((item) => {
+        let playerName = document.createElement("div");
+        playerName.className = "player-name";
+        playerName.innerHTML = item + (item === channels.id ? " (You)" : "");
+        document.getElementById("player-bar").appendChild(playerName);
+    });
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight - 80;
+
+    gameSeed = seed;
+    deck = createAndShuffleDeck(gameSeed);
+    myRank = channels.getJoinRank(channels.id);
+    for (let i = 0; i < channels.numPeers; i++) {
+        if (myRank === i) {
+            myHand = new Hand(true, myRank);
+            hands[i] = myHand;
+        } else {
+            hands[i] = new Hand(myRank === i, i);
+        }
+    }
+    for (let i = 0; i < deck.length + 1; i++) {
+        if (i == deck.length) {
+            setTimeout(() => {
+                hands.forEach(hand => {
+                    hand.hide();
+                });
+
+                myHand.show();
+
+                myHand.spread();
+            }, i * 50+1000)
+        } else {
+            setTimeout(() => {
+                hands[i % channels.numPeers].addCard(deck[i]);
+            }, i * 50);
+        }
+    }
+
+    if (channels.isHost()) {
+        channels.broadcastData(JSON.stringify({
+            type: "seed",
+            seed: seed
+        }));
+    }
+
+    requestAnimationFrame(loop);
+}
 
 function loop(timestamp) {
     deltaTime = timestamp - prevTime;
     prevTime = timestamp;
     fps = Math.round(1000 / deltaTime);
 
-    ctx.fillStyle = "#00512c";
+    ctx.fillStyle = "#00512d";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    if (frameNumber !== 0) {
+        deck.forEach(card => {
+            card.update(deltaTime);
+            card.render();
+        });
+    }
 
 
+    frameNumber++;
+    prevMouseDown = mouseDown;
     requestAnimationFrame(loop);
 }
 
@@ -329,11 +353,8 @@ channels.onDataReceived = (data, remoteId) => {
 
         if (received.type === "seed") {
             if (remoteId === channels.hostId) {
-                seed = received.seed;
-                deck = createAndShuffleDeck(seed);
-                hand = getHand(deck, channels.getJoinRank(channels.id), channels.numPeers);
-                console.log(hand);
+                initialize(received.seed);
             }
         }
-    } catch (err) { }
+    } catch (e) { }
 };

@@ -197,6 +197,7 @@ ul li {
 
 #main-canvas {
     display: inline;
+    background-color: "rgba(0, 81, 45)";
     width: 100vw;
     height: calc(100vh - 80px);
     touch-action: none;

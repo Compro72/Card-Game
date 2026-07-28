@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body onclick="goFullscreen()">
+<body>
     <div id="lobby-container">
 
         <div id="first-lobby">
@@ -105,7 +105,7 @@
     </div>
 
     <script>
-        const scripts = ["./network/connector.js", "./network/p2p.js", "main.js"];
+        const scripts = ["./network/connector.js", "./network/p2p.js", "card.js", "hand.js", "main.js"];
 
         scripts.forEach(file => {
             const script = document.createElement("script");
