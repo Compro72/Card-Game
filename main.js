@@ -267,7 +267,6 @@ function createAndShuffleDeck(seed) {
     return deck;
 }
 
-let ratio = screen.width / (screen.height - 80);
 
 function initialize(seed) {
     document.getElementById("game-area").style.display = "flex";

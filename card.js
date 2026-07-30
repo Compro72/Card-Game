@@ -16,7 +16,7 @@
         this.flipFaceDown = false;
         this.flipProgress = 0;
 
-        this.animationSpeed = 0.01;
+        this.animationSpeed = 0.005;
 
         this.showCard = true;
     }
