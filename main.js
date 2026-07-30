@@ -1,4 +1,4 @@
-let connector = new Connector();
+﻿let connector = new Connector();
 
 function createRoom() {
     connector.createRoom();
@@ -192,6 +192,9 @@ let CARD_HEIGHT = 126;
 
 let frameNumber = 0;
 
+// --- DRAG / SCROLL STATE ---
+let isDragging = false;
+let lastTouchX = 0;
 
 function updateMousePosition(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
@@ -203,50 +206,47 @@ window.addEventListener("mousemove", (e) => {
     updateMousePosition(e.clientX, e.clientY);
 });
 
-function handleTouch(e) {
-    if (e.touches.length > 0) {
-        updateMousePosition(e.touches[0].clientX, e.touches[0].clientY);
-    }
-}
-
-window.addEventListener("touchstart", (e) => {
-    if (e.target === canvas) {
-        e.preventDefault();
-    }
-    handleTouch(e);
-    mouseDown = true;
-}, { passive: false });
-
-window.addEventListener("touchmove", (e) => {
-    if (e.target === canvas) {
-        e.preventDefault();
-    }
-    handleTouch(e);
-}, { passive: false });
-
-window.addEventListener("touchend", (e) => {
-    if (e.target === canvas) {
-        e.preventDefault();
-    }
-    mouseDown = false;
-}, { passive: false });
-
-window.addEventListener("mousedown", (event) => {
+canvas.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    isDragging = true;
+    lastTouchX = e.clientX;
     mouseDown = true;
 });
 
-window.addEventListener("mouseup", (event) => {
+window.addEventListener("pointermove", (e) => {
+    updateMousePosition(e.clientX, e.clientY);
+    if (!isDragging) return;
+
+    const dx = e.clientX - lastTouchX;
+    if (myHand) {
+        myHand.baseX += dx;
+    }
+    lastTouchX = e.clientX;
+});
+
+window.addEventListener("pointerup", () => {
+    isDragging = false;
     mouseDown = false;
 });
+
+window.addEventListener("pointercancel", () => {
+    isDragging = false;
+    mouseDown = false;
+});
+
+// --- WHEEL / TRACKPAD HANDLER ---
+canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (myHand) {
+        myHand.baseX -= delta;
+    }
+}, { passive: false });
 
 window.addEventListener("resize", (event) => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight - 80;
-    hands.forEach(hand => {
-        hand.reposition();
-    });
+    canvas.width = window.innerWidth * window.devicePixelRatio;
+    canvas.height = (window.innerHeight * 0.9) * window.devicePixelRatio;
 });
-
 
 function createAndShuffleDeck(seed) {
     let deck = [];
@@ -261,20 +261,13 @@ function createAndShuffleDeck(seed) {
         randomState = (randomState * 1664525 + 1013904223) % 4294967296;
         let swapIndex = Math.floor((randomState / 4294967296) * (i + 1));
 
-        [deck[i], deck[swapIndex]] = [deck[swapIndex], deck[i]]
+        [deck[i], deck[swapIndex]] = [deck[swapIndex], deck[i]];
     }
 
     return deck;
 }
 
-
-// function animateDealing() {
-//     for (let i = 0; i < deck.length; i++) {
-//         let
-//     }
-// }
-
-let ratio = screen.width/(screen.height-80);
+let ratio = screen.width / (screen.height - 80);
 
 function initialize(seed) {
     document.getElementById("game-area").style.display = "flex";
@@ -284,8 +277,8 @@ function initialize(seed) {
         playerName.innerHTML = item + (item === channels.id ? " (You)" : "");
         document.getElementById("player-bar").appendChild(playerName);
     });
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight - 80;
+    canvas.width = window.innerWidth * window.devicePixelRatio;
+    canvas.height = (window.innerHeight * 0.9) * window.devicePixelRatio;
 
     gameSeed = seed;
     deck = createAndShuffleDeck(gameSeed);
@@ -306,9 +299,8 @@ function initialize(seed) {
                 });
 
                 myHand.show();
-
                 myHand.spread();
-            }, i * 50+1000)
+            }, i * 50 + 600);
         } else {
             setTimeout(() => {
                 hands[i % channels.numPeers].addCard(deck[i]);
@@ -334,13 +326,18 @@ function loop(timestamp) {
     ctx.fillStyle = "#00512d";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    CARD_WIDTH = (canvas.height * 0.22222222222) * (90 / 126);
+    CARD_HEIGHT = canvas.height * 0.22222222222;
+    hands.forEach(hand => {
+        hand.reposition();
+    });
+
     if (frameNumber !== 0) {
         deck.forEach(card => {
             card.update(deltaTime);
             card.render();
         });
     }
-
 
     frameNumber++;
     prevMouseDown = mouseDown;
