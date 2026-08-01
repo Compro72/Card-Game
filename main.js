@@ -172,10 +172,10 @@ let prevTime = performance.now();
 let deltaTime = 0;
 let fps = 60;
 
-let mouseX = 0;
-let mouseY = 0;
-let prevMouseDown = false;
-let mouseDown = false;
+// let mouseX = 0;
+// let mouseY = 0;
+// let prevMouseDown = false;
+// let mouseDown = false;
 
 let gameSeed;
 
@@ -186,15 +186,37 @@ let deck;
 let myRank;
 let hands = [];
 let myHand;
+let tableHand;
 
 let CARD_WIDTH = 90;
 let CARD_HEIGHT = 126;
 
 let frameNumber = 0;
 
-// --- DRAG / SCROLL STATE ---
+
+
+
+let mouseX = 0;
+let mouseY = 0;
+
+let mouseDown = false;
+let prevMouseDown = false;
+
+let isClicked = false;
+let isPressed = false;
+let isReleased = false;
+
 let isDragging = false;
+let isScrolling = false;
+
 let lastTouchX = 0;
+let lastTouchY = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+const DRAG_THRESHOLD = 8;
+let scrollTimeout = null;
+
+let distScrolled = 0;
 
 function updateMousePosition(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
@@ -202,46 +224,87 @@ function updateMousePosition(clientX, clientY) {
     mouseY = (canvas.height / 2) - (((clientY - rect.top) / rect.height) * canvas.height);
 }
 
-window.addEventListener("mousemove", (e) => {
-    updateMousePosition(e.clientX, e.clientY);
-});
-
 canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    isDragging = true;
-    lastTouchX = e.clientX;
+
+    canvas.setPointerCapture(e.pointerId);
+
+    updateMousePosition(e.clientX, e.clientY);
+
     mouseDown = true;
+    isPressed = true;
+    isDragging = false;
+
+    touchStartX = e.clientX;
+    touchStartY = e.clientY;
+    lastTouchX = e.clientX;
+    lastTouchY = e.clientY;
 });
 
 window.addEventListener("pointermove", (e) => {
     updateMousePosition(e.clientX, e.clientY);
-    if (!isDragging) return;
 
-    const dx = e.clientX - lastTouchX;
-    if (myHand) {
-        myHand.baseX += dx;
+    if (!mouseDown) return;
+
+    const totalDx = e.clientX - touchStartX;
+    const totalDy = e.clientY - touchStartY;
+    const distSq = totalDx * totalDx + totalDy * totalDy;
+
+    if (!isDragging && distSq > DRAG_THRESHOLD * DRAG_THRESHOLD) {
+        isDragging = true;
     }
+
+    if (isDragging) {
+        const dx = (e.clientX - lastTouchX) * window.devicePixelRatio;
+        if (myHand) {
+            distScrolled = dx;
+        }
+    }
+
     lastTouchX = e.clientX;
+    lastTouchY = e.clientY;
 });
 
-window.addEventListener("pointerup", () => {
-    isDragging = false;
+function handlePointerUp(e) {
+    if (!mouseDown) return;
+
+    if (canvas.hasPointerCapture(e.pointerId)) {
+        canvas.releasePointerCapture(e.pointerId);
+    }
+
+    if (!isDragging) {
+        isClicked = true;
+    }
+
     mouseDown = false;
-});
-
-window.addEventListener("pointercancel", () => {
     isDragging = false;
-    mouseDown = false;
-});
+    isReleased = true;
+}
 
-// --- WHEEL / TRACKPAD HANDLER ---
+window.addEventListener("pointerup", handlePointerUp);
+window.addEventListener("pointercancel", handlePointerUp);
+
 canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
     const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-    if (myHand) {
-        myHand.baseX -= delta;
-    }
+
+    distScrolled = -delta;
+
+    isScrolling = true;
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+        isScrolling = false;
+    }, 150);
 }, { passive: false });
+
+
+
+
+
+
+
+
+
 
 window.addEventListener("resize", (event) => {
     canvas.width = window.innerWidth * window.devicePixelRatio;
@@ -282,10 +345,24 @@ function initialize(seed) {
     gameSeed = seed;
     deck = createAndShuffleDeck(gameSeed);
     myRank = channels.getJoinRank(channels.id);
+
+    tableHand = new TableHand();
     for (let i = 0; i < channels.numPeers; i++) {
         if (myRank === i) {
             myHand = new Hand(true, myRank);
             hands[i] = myHand;
+
+            myHand.onCardPlayed = (card, cardIndex) => {
+                myHand.removeCard(cardIndex);
+                card.animationSpeed = 0.005;
+                tableHand.addCard(card);
+
+                channels.broadcastData(JSON.stringify({
+                    type: "playCard",
+                    value: card.value,
+                    suit: card.suit
+                }));
+            }
         } else {
             hands[i] = new Hand(myRank === i, i);
         }
@@ -317,29 +394,53 @@ function initialize(seed) {
     requestAnimationFrame(loop);
 }
 
+
 function loop(timestamp) {
     deltaTime = timestamp - prevTime;
     prevTime = timestamp;
     fps = Math.round(1000 / deltaTime);
 
+    if (frameNumber === 0) {
+        frameNumber++;
+        prevMouseDown = mouseDown;
+        requestAnimationFrame(loop);
+    }
+
+    if ((isScrolling || isDragging) && mouseY < 0) {
+        myHand.baseX += distScrolled;
+    }
+
     ctx.fillStyle = "#00512d";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    CARD_WIDTH = (canvas.height * 0.22222222222) * (90 / 126);
-    CARD_HEIGHT = canvas.height * 0.22222222222;
-    hands.forEach(hand => {
-        hand.reposition();
-    });
+    // console.log(canvas.width, canvas.height, mouseX, mouseY, mouseDown);
 
-    if (frameNumber !== 0) {
+    CARD_WIDTH = (canvas.height * 0.27777777777) * (90 / 126);
+    CARD_HEIGHT = canvas.height * 0.27777777777;
+
+    if (myHand.isSpread) {
+        hands.forEach(hand => {
+            hand.update(deltaTime);
+            hand.render();
+        });
+    } else {
+        hands.forEach(hand => {
+            hand.update(deltaTime);
+        });
         deck.forEach(card => {
-            card.update(deltaTime);
             card.render();
         });
     }
 
-    frameNumber++;
+    tableHand.update(deltaTime);
+    tableHand.render();
+
     prevMouseDown = mouseDown;
+    isClicked = false;
+    isPressed = false;
+    isReleased = false;
+
+    frameNumber++;
     requestAnimationFrame(loop);
 }
 
@@ -351,6 +452,15 @@ channels.onDataReceived = (data, remoteId) => {
             if (remoteId === channels.hostId) {
                 initialize(received.seed);
             }
+        } else if (received.type === "playCard") {
+            let remoteRank = channels.getJoinRank(remoteId);
+            let cardIndex = hands[remoteRank].getCardIndex(received.value, received.suit);
+            let card = hands[remoteRank].cards[cardIndex];
+            card.show();
+            card.animateFlip();
+            hands[remoteRank].removeCard(cardIndex);
+            card.animationSpeed = 0.005;
+            tableHand.addCard(card);
         }
     } catch (e) { }
 };

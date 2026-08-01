@@ -16,9 +16,12 @@
         this.flipFaceDown = false;
         this.flipProgress = 0;
 
-        this.animationSpeed = 0.005;
+        this.animationSpeed = 0.01;
 
         this.showCard = true;
+
+        this.isHovered = false;
+        this.prevIsHovered = false;
     }
 
     show() {
@@ -43,13 +46,6 @@
         this.flipProgress = 0;
     }
 
-    setPosition(x, y) {
-        this.x = x;
-        this.y = y;
-        this.targetX = x;
-        this.targetY = y;
-    }
-
     setRotation(angle) {
         this.angle = angle;
         this.targetAngle = angle;
@@ -59,7 +55,7 @@
         return start + (end - start) * t;
     }
 
-    update(deltaTime) {
+    update(deltaTime, gap) {
         let lerpAmount = 1 - Math.exp(-this.animationSpeed * deltaTime);
         this.x += (this.targetX - this.x) * lerpAmount;
         this.y += (this.targetY - this.y) * lerpAmount;
@@ -84,6 +80,13 @@
                 this.flipProgress = 0;
             }
         }
+
+        this.prevIsHovered = this.isHovered;
+        if(mouseX >= this.x - CARD_WIDTH / 2 && mouseX <= this.x + CARD_WIDTH / 2 - (CARD_WIDTH-gap) && mouseY >= -(canvas.height / 2) + CARD_WIDTH / 4 && mouseY <= this.y + CARD_HEIGHT / 2) {
+            this.isHovered = true;
+        } else {
+            this.isHovered = false;
+        }
     }
 
     render() {
@@ -92,7 +95,7 @@
         const screenX = (canvas.width / 2) + this.x;
         const screenY = (canvas.height / 2) - this.y;
 
-        if(screenX + CARD_WIDTH / 2 < 0 || screenX - CARD_WIDTH / 2 > canvas.width || screenY + CARD_HEIGHT / 2 < 0 || screenY - CARD_HEIGHT / 2 > canvas.height) {
+        if (screenX + CARD_WIDTH / 2 < 0 || screenX - CARD_WIDTH / 2 > canvas.width || screenY + CARD_HEIGHT / 2 < 0 || screenY - CARD_HEIGHT / 2 > canvas.height) {
             return;
         }
 
@@ -113,18 +116,30 @@
             ctx.roundRect(-halfW, -halfH, CARD_WIDTH, CARD_HEIGHT, radius);
             ctx.fill();
 
+            ctx.fillStyle = "#7b4949";
+            ctx.beginPath();
+            ctx.roundRect(-halfW + (CARD_HEIGHT * 0.04), -halfH + (CARD_HEIGHT * 0.04), CARD_WIDTH - CARD_HEIGHT * 0.08, CARD_HEIGHT * 0.92, radius);
+            ctx.fill();
+
             ctx.fillStyle = "#5a1b1b";
             ctx.beginPath();
-            ctx.roundRect(-halfW + 5, -halfH + 5, CARD_WIDTH - 10, CARD_HEIGHT - 10, radius);
+            ctx.roundRect(-halfW + (CARD_HEIGHT * 0.1), -halfH + (CARD_HEIGHT * 0.1), CARD_WIDTH - CARD_HEIGHT * 0.2, CARD_HEIGHT * 0.8, radius);
             ctx.fill();
 
             // ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-            // ctx.lineWidth = 8;
-            // ctx.strokeRect(-halfW + 10, -halfH + 10, CARD_WIDTH - 20, CARD_HEIGHT - 20);
+            // ctx.lineWidth = 16;
+            // ctx.beginPath();
+            // ctx.roundRect(-halfW + (CARD_HEIGHT * 0.08), -halfH + (CARD_HEIGHT * 0.08), CARD_WIDTH - CARD_HEIGHT * 0.16, CARD_HEIGHT * 0.84, radius);
+            // ctx.stroke();
         } else {
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = "#000000";
             ctx.beginPath();
             ctx.roundRect(-halfW, -halfH, CARD_WIDTH, CARD_HEIGHT, radius);
+            ctx.fill();
+
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.roundRect(-halfW+1, -halfH+1, CARD_WIDTH-2, CARD_HEIGHT-2, radius);
             ctx.fill();
 
             ctx.fillStyle = (this.suit === "♥" || this.suit === "♦") ? "#d32f2f" : "#1e1e1e";
