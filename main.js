@@ -24,6 +24,7 @@ let tableHand;
 let currentTurn;
 let newRound = true;
 let firstRound = true;
+let roundEnd = false;
 let currentRoundSuit = "♠";
 
 let CARD_WIDTH = 90;

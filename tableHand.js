@@ -61,16 +61,21 @@ class TableHand {
         }
 
         if (!newRound && card.suit !== currentRoundSuit) {
-            newRound = true;
-            currentRoundSuit = "";
-            this.cards.forEach(card => {
-                hands[this.maxPlayer].addCard(card);
-            });
-            this.cards = [];
-            currentTurn = this.maxPlayer;
+            roundEnd = true;
 
-            this.maxPlayer = -1;
-            this.maxValue = -1;
+            setTimeout(() => {
+                roundEnd = false;
+                newRound = true;
+                currentRoundSuit = "";
+                this.cards.forEach(card => {
+                    hands[this.maxPlayer].addCard(card);
+                });
+                this.cards = [];
+                currentTurn = this.maxPlayer;
+
+                this.maxPlayer = -1;
+                this.maxValue = -1;
+            }, 2000);
             return;
         }
 
@@ -86,13 +91,19 @@ class TableHand {
         }
 
         if (this.cards.length == channels.numPeers) {
-            newRound = true;
-            currentRoundSuit = "";
-            this.cards = [];
-            currentTurn = this.maxPlayer;
+            roundEnd = true;
 
-            this.maxPlayer = -1;
-            this.maxValue = -1;
+            setTimeout(() => {
+                roundEnd = false;
+                newRound = true;
+                currentRoundSuit = "";
+                this.cards = [];
+                currentTurn = this.maxPlayer;
+
+                this.maxPlayer = -1;
+                this.maxValue = -1;
+            }, 2000);
+            return;
         } else {
             currentTurn = (currentTurn + 1) % channels.numPeers;
         }

@@ -30,10 +30,6 @@
         this.showCard = false;
     }
 
-    lerp(start, end, t) {
-        return start + (end - start) * t;
-    }
-
     update(deltaTime, gap) {
         let lerpAmount = 1 - Math.exp(-this.animationSpeed * deltaTime);
         this.x += (this.targetX - this.x) * lerpAmount;
