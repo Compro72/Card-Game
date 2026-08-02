@@ -235,7 +235,7 @@ function loop(timestamp) {
 
     for (let i = 0; i < channels.numPeers; i++) {
         if (i == currentTurn) {
-            document.getElementById("player" + i).style.border = "10px solid red";
+            document.getElementById("player" + i).style.border = "1.5vh solid red";
         } else {
             document.getElementById("player" + i).style.border = "none";
         }

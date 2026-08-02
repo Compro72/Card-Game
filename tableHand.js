@@ -6,6 +6,7 @@ class TableHand {
 
         this.isSpread = false;
         this.showHand = true;
+        this.cardsExit = false;
 
         this.maxPlayer = -1;
         this.maxValue = -1;
@@ -64,6 +65,11 @@ class TableHand {
             roundEnd = true;
 
             setTimeout(() => {
+                this.cardsExit = true;
+            }, 1200);
+
+            setTimeout(() => {
+                this.cardsExit = false;
                 roundEnd = false;
                 newRound = true;
                 currentRoundSuit = "";
@@ -75,14 +81,13 @@ class TableHand {
 
                 this.maxPlayer = -1;
                 this.maxValue = -1;
-            }, 2000);
+            }, 1500);
             return;
         }
 
         if (valueOrder[card.value] > this.maxValue) {
             this.maxValue = valueOrder[card.value]
             this.maxPlayer = currentTurn;
-            console.log(this.maxValue, this.maxPlayer)
         }
 
         if (newRound) {
@@ -94,6 +99,11 @@ class TableHand {
             roundEnd = true;
 
             setTimeout(() => {
+                this.cardsExit = true;
+            }, 1200);
+
+            setTimeout(() => {
+                this.cardsExit = false;
                 roundEnd = false;
                 newRound = true;
                 currentRoundSuit = "";
@@ -128,7 +138,13 @@ class TableHand {
     }
 
     update(deltaTime) {
-        if (this.isSpread) {
+        if (this.cardsExit) {
+            for (let i = 0; i < this.cards.length; i++) {
+                this.cards[i].targetScaleX = -1;
+                this.cards[i].targetX = 0;
+                this.cards[i].targetY = canvas.height;
+            }
+        } else if (this.isSpread) {
             this.gap = CARD_WIDTH * 1.2;
             if ((this.cards.length - 1) * this.gap + CARD_WIDTH < canvas.width) {
                 this.baseX = -((this.cards.length - 1) * this.gap + CARD_WIDTH) / 2 + CARD_WIDTH / 2;
