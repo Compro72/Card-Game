@@ -8,6 +8,7 @@ class P2PDataChannels {
 		this.iceCandidateQueue = {};
 		this.latency = {};
 		this.unresolvedPings = {};
+		this.queuedMessages = {};
 
 		this.timestamps = {};
 		this.oldestTimestamp = Infinity;
@@ -207,9 +208,15 @@ class P2PDataChannels {
 				this.onDataReceived(event.data, remoteId);
 			}
 		};
+		
+		channel.bufferedAmountLowThreshold = 65536;
+		channel.onbufferedamountlow = () => {
+			this.flushMessageQueue(remoteId);
+		};
 
 		channel.onopen = () => {
 			this.onPeerConnected(remoteId);
+			this.flushMessageQueue(remoteId);
 		};
 
 		channel.onclose = () => {
@@ -253,12 +260,36 @@ class P2PDataChannels {
 	}
 
 	sendDataToPeer(remoteId, data) {
-		if (this.dataChannels[remoteId] && this.dataChannels[remoteId].readyState === "open" && this.dataChannels[remoteId].bufferedAmount < 1048576) {
-			this.dataChannels[remoteId].send(data);
-			return true;
-		} else {
+		if (!this.queuedMessages[remoteId]) {
+			this.queuedMessages[remoteId] = [];
+		}
+
+		this.queuedMessages[remoteId].push(data);
+
+		return this.flushMessageQueue(remoteId);
+	}
+
+	flushMessageQueue(remoteId) {
+		const channel = this.dataChannels[remoteId];
+		const queue = this.queuedMessages[remoteId];
+
+		if (!channel || channel.readyState !== "open" || !queue || queue.length === 0) {
 			return false;
 		}
+
+		const MAX_BUFFER = 1048576;
+
+		while (queue.length > 0 && channel.bufferedAmount < MAX_BUFFER) {
+			const message = queue.shift();
+			try {
+				channel.send(message);
+			} catch (err) {
+				queue.unshift(message);
+				break;
+			}
+		}
+
+		return queue.length === 0;
 	}
 
 	closePeerConnection(remoteId) {
@@ -266,6 +297,7 @@ class P2PDataChannels {
 
 		if (this.dataChannels[remoteId]) {
 			this.dataChannels[remoteId].onopen = null;
+			this.dataChannels[remoteId].onbufferedamountlow = null;
 			this.dataChannels[remoteId].onclose = null;
 			this.dataChannels[remoteId].onmessage = null;
 			this.dataChannels[remoteId].close();
@@ -285,6 +317,7 @@ class P2PDataChannels {
 		delete this.latency[remoteId];
 		delete this.unresolvedPings[remoteId];
 		delete this.timestamps[remoteId];
+		delete this.queuedMessages[remoteId];
 
 		this.oldestTimestamp = Infinity;
 		Object.keys(this.timestamps).forEach((timestampRemoteId) => {
