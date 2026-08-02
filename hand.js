@@ -84,7 +84,7 @@
     }
 
     cardClicked(card, cardIndex) {
-        if (currentTurn == myRank && (
+        if (currentTurn == myRank && !roundEnd && (
             (firstRound && card.value == "A" && card.suit == "♠") ||
             (newRound && !firstRound) ||
             (!newRound && card.suit == currentRoundSuit) ||

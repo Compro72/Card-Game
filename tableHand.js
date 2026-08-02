@@ -102,7 +102,7 @@ class TableHand {
 
                 this.maxPlayer = -1;
                 this.maxValue = -1;
-            }, 2000);
+            }, 1500);
             return;
         } else {
             currentTurn = (currentTurn + 1) % channels.numPeers;
