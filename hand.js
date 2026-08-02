@@ -8,47 +8,65 @@
         this.isSpread = false;
         this.baseX = Infinity;
 
+        this.showHand = true;
+
         this.onCardPlayed = (card) => { };
     }
 
     show() {
-        this.cards.forEach(card => {
-            card.show();
-        });
+        this.showHand = true;
     }
 
     hide() {
-        this.cards.forEach(card => {
-            card.hide();
-        });
+        this.showHand = false;
     }
 
     spread() {
         this.sortCards();
         this.isSpread = true;
-        for (let i = 0; i < this.cards.length; i++) {
-            this.cards[i].animateFlip();
-        }
-        // setTimeout(() => {
-        //     this.cards.forEach(card => card.animationSpeed = 0.01);
-        // }, 1200);
     }
 
     addCard(card) {
         this.cards.push(card);
+
+        if (this.isSpread) {
+            this.sortCards();
+        }
     }
 
     removeCard(cardIndex) {
-        this.cards.splice(cardIndex, 1); 
+        this.cards.splice(cardIndex, 1);
     }
 
     getCardIndex(value, suit) {
-        for(let i = 0; i < this.cards.length; i++) {
-            if(this.cards[i].value == value && this.cards[i].suit == suit) {
+        for (let i = 0; i < this.cards.length; i++) {
+            if (this.cards[i].value == value && this.cards[i].suit == suit) {
                 return i;
             }
         }
         return -1;
+    }
+
+    containsCard(value, suit) {
+        if (value == "any" && suit == "any") {
+            return this.cards.length > 0;
+        } else if (value == "any") {
+            for (let i = 0; i < this.cards.length; i++) {
+                if (this.cards[i].suit == suit) {
+                    return true;
+                }
+            }
+            return false;
+        } else if (suit == "any") {
+            for (let i = 0; i < this.cards.length; i++) {
+                if (this.cards[i].value == value) {
+                    return true;
+                }
+            }
+            return false;
+        } else {
+            return this.getCardIndex(value, suit) !== -1;
+        }
     }
 
     sortCards() {
@@ -65,27 +83,47 @@
         });
     }
 
+    cardClicked(card, cardIndex) {
+        if (currentTurn == myRank && (
+            (firstRound && card.value == "A" && card.suit == "♠") ||
+            (newRound && !firstRound) ||
+            (!newRound && card.suit == currentRoundSuit) ||
+            (!newRound && !this.containsCard("any", currentRoundSuit))
+        )) {
+            this.onCardPlayed(card, cardIndex);
+        }
+    }
+
     update(deltaTime) {
         this.gap = CARD_WIDTH * 0.8;
 
         this.cards.forEach(card => {
+            this.showHand ? card.show() : card.hide();
             card.update(deltaTime, this.gap);
         });
 
         if (this.isSpread) {
-            this.baseX = Math.min((CARD_WIDTH / 2) - (canvas.width / 2) + CARD_WIDTH / 2, Math.max((canvas.width / 2) - (this.cards.length * this.gap), this.baseX));
+            if ((this.cards.length - 1) * this.gap + CARD_WIDTH < canvas.width) {
+                this.baseX = -((this.cards.length - 1) * this.gap + CARD_WIDTH) / 2 + CARD_WIDTH / 2;
+            } else {
+                this.baseX = Math.min((CARD_WIDTH / 2) - (canvas.width / 2) + CARD_WIDTH / 2, Math.max((canvas.width / 2) - (this.cards.length * this.gap), this.baseX));
+            }
             for (let i = 0; i < this.cards.length; i++) {
+                this.cards[i].targetScaleX = -1;
+                this.cards[i].targetX = this.baseX + (i * this.gap);
+                this.cards[i].targetY = CARD_HEIGHT / 2 - (canvas.height / 2) + CARD_WIDTH / 4;
+                if (this.cards[i].isHovered) {
+                    this.cards[i].targetY += CARD_HEIGHT / 5;
+                }
                 if (this.cards[i].isHovered && isClicked) {
-                    this.onCardPlayed(this.cards[i], i);
-                } else if (this.cards[i].isHovered) {
-                    this.cards[i].animatePosition(this.baseX + (i * this.gap), CARD_HEIGHT / 2 - (canvas.height / 2) + CARD_WIDTH / 4 + CARD_HEIGHT / 5);
-                } else {
-                    this.cards[i].animatePosition(this.baseX + (i * this.gap), CARD_HEIGHT / 2 - (canvas.height / 2) + CARD_WIDTH / 4);
+                    this.cardClicked(this.cards[i], i);
                 }
             }
         } else {
             for (let i = 0; i < this.cards.length; i++) {
-                this.cards[i].animatePosition((((canvas.width / channels.numPeers) / 2) - (canvas.width / 2)) + (this.rank * (canvas.width / channels.numPeers)), CARD_HEIGHT / 2 - (canvas.height / 2) + CARD_WIDTH / 4);
+                this.cards[i].targetScaleX = 1;
+                this.cards[i].targetX = (((canvas.width / channels.numPeers) / 2) - (canvas.width / 2)) + (this.rank * (canvas.width / channels.numPeers));
+                this.cards[i].targetY = CARD_HEIGHT / 2 - (canvas.height / 2) + CARD_WIDTH / 4;
             }
         }
     }

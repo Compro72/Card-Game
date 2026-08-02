@@ -4,17 +4,15 @@
         this.suit = suit;
         this.x = x;
         this.y = y;
-        this.isFaceDown = isFaceDown;
+
         this.scaleX = 1.0;
+        this.targetScaleX = isFaceDown ? 1 : -1;
+
         this.angle = 0;
 
         this.targetX = x;
         this.targetY = y;
         this.targetAngle = 0;
-
-        this.isFlipping = false;
-        this.flipFaceDown = false;
-        this.flipProgress = 0;
 
         this.animationSpeed = 0.01;
 
@@ -32,25 +30,6 @@
         this.showCard = false;
     }
 
-    animatePosition(targetX, targetY) {
-        this.targetX = targetX;
-        this.targetY = targetY;
-    }
-
-    animateAngle(targetAngle) {
-        this.targetAngle = targetAngle;
-    }
-
-    animateFlip() {
-        this.isFlipping = true;
-        this.flipProgress = 0;
-    }
-
-    setRotation(angle) {
-        this.angle = angle;
-        this.targetAngle = angle;
-    }
-
     lerp(start, end, t) {
         return start + (end - start) * t;
     }
@@ -66,20 +45,8 @@
         while (diff > Math.PI) diff -= Math.PI * 2;
 
         this.angle += diff * lerpAmount;
-
-        if (this.isFlipping) {
-            this.flipFaceDown = this.flipProgress >= 0.5 ? !this.isFaceDown : this.isFaceDown;
-            this.scaleX = Math.abs(Math.cos(this.flipProgress * Math.PI));
-            this.flipProgress += this.animationSpeed * deltaTime;
-
-            if (this.flipProgress >= 1.0) {
-                this.isFaceDown = !this.isFaceDown;
-                this.isFlipping = false;
-                this.flipFaceDown = false;
-                this.scaleX = 1;
-                this.flipProgress = 0;
-            }
-        }
+        
+        this.scaleX += (this.targetScaleX - this.scaleX) * lerpAmount;
 
         this.prevIsHovered = this.isHovered;
         if(mouseX >= this.x - CARD_WIDTH / 2 && mouseX <= this.x + CARD_WIDTH / 2 - (CARD_WIDTH-gap) && mouseY >= -(canvas.height / 2) + CARD_WIDTH / 4 && mouseY <= this.y + CARD_HEIGHT / 2) {
@@ -104,13 +71,13 @@
         ctx.translate(screenX, screenY);
 
         if (this.angle !== 0) ctx.rotate(this.angle);
-        if (this.scaleX !== 1.0) ctx.scale(this.scaleX, 1.0);
+        ctx.scale(Math.abs(this.scaleX), 1.0);
 
         const halfW = CARD_WIDTH / 2;
         const halfH = CARD_HEIGHT / 2;
         const radius = Math.max(4, Math.floor(CARD_WIDTH * 0.09));
 
-        if ((this.isFlipping && this.flipFaceDown) || (!this.isFlipping && this.isFaceDown)) {
+        if (this.scaleX > 0) {
             ctx.fillStyle = "#ffffff";
             ctx.beginPath();
             ctx.roundRect(-halfW, -halfH, CARD_WIDTH, CARD_HEIGHT, radius);

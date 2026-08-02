@@ -1,170 +1,4 @@
-﻿let connector = new Connector();
-
-function createRoom() {
-    connector.createRoom();
-}
-
-function leaveRoom() {
-    connector.leaveRoom();
-}
-
-
-let channels = new P2PDataChannels(connector);
-
-
-connector.onRoomsListChange = () => {
-    updateView();
-}
-
-connector.onRoomJoinStatusChange = () => {
-    updateView();
-}
-
-channels.idCreated = (localId) => {
-    updateView();
-}
-
-channels.onPeerConnected = (remoteId) => {
-    updateView();
-};
-
-channels.onPeerDisconnected = (remoteId) => {
-    updateView();
-};
-
-updateView();
-
-
-function updateView() {
-    const hasJoinedRoom = connector.connectedRoom && connector.connectedRoom !== "null";
-
-    if (hasJoinedRoom) {
-        document.getElementById("first-lobby").style.display = "none";
-        document.getElementById("second-lobby").style.display = "flex";
-
-        document.getElementById("my-id-second").textContent = channels.id;
-        document.getElementById("room-id").textContent = connector.connectedRoom;
-
-        if (hasJoinedRoom) {
-            const host = channels.hostId || "loading...";
-            const hostBadge = document.getElementById("host-id");
-
-            if (channels.isHost()) {
-                hostBadge.textContent = `${host} (You)`;
-                hostBadge.style.border = "3px solid green";
-            } else {
-                hostBadge.textContent = host;
-                hostBadge.style.border = "none";
-            }
-        }
-
-        if (channels.isHost()) {
-            document.getElementById("start-room").style.display = "inline";
-        } else {
-            document.getElementById("start-room").style.display = "none";
-        }
-
-        document.getElementById("players-joined").textContent = "Players Joined (" + channels.numPeers + ")";
-
-        const listContainer = document.getElementById("players-list");
-        listContainer.innerHTML = "";
-        Object.keys(channels.timestamps).forEach(item => {
-            const li = document.createElement("li");
-
-            const textSpan = document.createElement("span");
-            if (item === channels.id) {
-                textSpan.textContent = "Player ID: " + item + " (You)";
-                textSpan.style.border = "3px solid green";
-            } else {
-                textSpan.textContent = "Player ID: " + item;
-            }
-
-            textSpan.className = "id";
-            li.appendChild(textSpan);
-
-            if (channels.isHost() && item !== channels.id) {
-                const removeButton = document.createElement("button");
-                removeButton.textContent = "remove";
-
-                removeButton.className = "btn remove";
-
-                removeButton.onclick = () => {
-                    channels.removeFromRoom(item);
-                };
-
-                li.appendChild(removeButton);
-            }
-            listContainer.appendChild(li);
-        });
-    } else {
-        document.getElementById("first-lobby").style.display = "flex";
-        document.getElementById("second-lobby").style.display = "none";
-
-        document.getElementById("my-id").textContent = channels.id || "loading...";
-
-        document.getElementById("available-rooms").textContent = "Available Rooms (" + connector.roomIds.length + ")";
-
-        const listContainer = document.getElementById("rooms-list");
-        listContainer.innerHTML = "";
-        connector.roomIds.forEach(item => {
-            const li = document.createElement("li");
-
-            const textSpan = document.createElement("span");
-            textSpan.textContent = "Room ID: " + item;
-            textSpan.className = "id";
-            li.appendChild(textSpan);
-
-            const joinButton = document.createElement("button");
-            joinButton.textContent = "Join";
-
-            joinButton.className = "btn join";
-
-            joinButton.onclick = () => {
-                connector.joinRoom(item);
-            };
-
-            li.appendChild(joinButton);
-            listContainer.appendChild(li);
-        });
-    }
-}
-
-function start() {
-    //if (channels.numPeers >= 2) {
-    channels.start();
-    //}
-}
-
-connector.onRoomStart = () => {
-    document.getElementById("lobby-container").style.display = "none";
-    if (channels.isHost()) {
-        initialize(Date.now());
-    }
-};
-
-
-// function goFullscreen() {
-//     document.body.requestFullscreen();
-// }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// --- GAME ---
+﻿// --- GAME ---
 let canvas = document.getElementById("main-canvas");
 let ctx = canvas.getContext("2d");
 
@@ -182,11 +16,15 @@ let gameSeed;
 const suits = ["♠", "♥", "♣", "♦"];
 const values = ["A", "K", "Q", "J", "10", "9", "8", "7", "6", "5", "4", "3", "2"];
 
-let deck;
 let myRank;
 let hands = [];
 let myHand;
 let tableHand;
+
+let currentTurn;
+let newRound = true;
+let firstRound = true;
+let currentRoundSuit = "♠";
 
 let CARD_WIDTH = 90;
 let CARD_HEIGHT = 126;
@@ -217,6 +55,12 @@ const DRAG_THRESHOLD = 8;
 let scrollTimeout = null;
 
 let distScrolled = 0;
+
+
+
+function goFullscreen() {
+    document.body.requestFullscreen();
+}
 
 function updateMousePosition(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
@@ -257,7 +101,7 @@ window.addEventListener("pointermove", (e) => {
     if (isDragging) {
         const dx = (e.clientX - lastTouchX) * window.devicePixelRatio;
         if (myHand) {
-            distScrolled = dx;
+            distScrolled += dx;
         }
     }
 
@@ -288,7 +132,7 @@ canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
     const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
 
-    distScrolled = -delta;
+    distScrolled -= delta;
 
     isScrolling = true;
     clearTimeout(scrollTimeout);
@@ -298,55 +142,35 @@ canvas.addEventListener("wheel", (e) => {
 }, { passive: false });
 
 
-
-
-
-
-
-
-
-
 window.addEventListener("resize", (event) => {
     canvas.width = window.innerWidth * window.devicePixelRatio;
     canvas.height = (window.innerHeight * 0.9) * window.devicePixelRatio;
 });
 
-function createAndShuffleDeck(seed) {
-    let deck = [];
-    values.forEach(value => {
-        suits.forEach(suit => {
-            deck.push(new Card(value, suit, 0, 0, true));
-        });
-    });
-
-    let randomState = seed;
-    for (let i = deck.length - 1; i > 0; i--) {
-        randomState = (randomState * 1664525 + 1013904223) % 4294967296;
-        let swapIndex = Math.floor((randomState / 4294967296) * (i + 1));
-
-        [deck[i], deck[swapIndex]] = [deck[swapIndex], deck[i]];
-    }
-
-    return deck;
-}
-
-
 function initialize(seed) {
     document.getElementById("game-area").style.display = "flex";
+    let playerRank = 0;
     Object.keys(channels.timestamps).forEach((item) => {
         let playerName = document.createElement("div");
+        playerName.id = "player" + playerRank;
         playerName.className = "player-name";
         playerName.innerHTML = item + (item === channels.id ? " (You)" : "");
         document.getElementById("player-bar").appendChild(playerName);
+
+        playerRank++;
     });
     canvas.width = window.innerWidth * window.devicePixelRatio;
     canvas.height = (window.innerHeight * 0.9) * window.devicePixelRatio;
 
+
+
+
     gameSeed = seed;
-    deck = createAndShuffleDeck(gameSeed);
     myRank = channels.getJoinRank(channels.id);
 
     tableHand = new TableHand();
+    tableHand.createAndShuffleDeck(gameSeed);
+
     for (let i = 0; i < channels.numPeers; i++) {
         if (myRank === i) {
             myHand = new Hand(true, myRank);
@@ -367,22 +191,20 @@ function initialize(seed) {
             hands[i] = new Hand(myRank === i, i);
         }
     }
-    for (let i = 0; i < deck.length + 1; i++) {
-        if (i == deck.length) {
-            setTimeout(() => {
-                hands.forEach(hand => {
-                    hand.hide();
-                });
 
-                myHand.show();
-                myHand.spread();
-            }, i * 50 + 600);
-        } else {
-            setTimeout(() => {
-                hands[i % channels.numPeers].addCard(deck[i]);
-            }, i * 50);
-        }
-    }
+    tableHand.dealCards(hands);
+
+    tableHand.onDealingFinish = () => {
+        hands.forEach(hand => {
+            if (hand.containsCard("A", "♠")) {
+                currentTurn = hand.rank;
+            }
+            hand.hide();
+        });
+
+        myHand.show();
+        myHand.spread();
+    };
 
     if (channels.isHost()) {
         channels.broadcastData(JSON.stringify({
@@ -401,36 +223,42 @@ function loop(timestamp) {
     fps = Math.round(1000 / deltaTime);
 
     if (frameNumber === 0) {
-        frameNumber++;
         prevMouseDown = mouseDown;
+        isClicked = false;
+        isPressed = false;
+        isReleased = false;
+
+        frameNumber++;
         requestAnimationFrame(loop);
     }
 
-    if ((isScrolling || isDragging) && mouseY < 0) {
-        myHand.baseX += distScrolled;
+    for (let i = 0; i < channels.numPeers; i++) {
+        if (i == currentTurn) {
+            document.getElementById("player" + i).style.border = "10px solid red";
+        } else {
+            document.getElementById("player" + i).style.border = "none";
+        }
+    }
+
+    if (isScrolling || isDragging) {
+        if (mouseY < 0) {
+            myHand.baseX += distScrolled;
+        } else {
+            tableHand.baseX += distScrolled;
+        }
+        distScrolled = 0;
     }
 
     ctx.fillStyle = "#00512d";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // console.log(canvas.width, canvas.height, mouseX, mouseY, mouseDown);
-
     CARD_WIDTH = (canvas.height * 0.27777777777) * (90 / 126);
     CARD_HEIGHT = canvas.height * 0.27777777777;
 
-    if (myHand.isSpread) {
-        hands.forEach(hand => {
-            hand.update(deltaTime);
-            hand.render();
-        });
-    } else {
-        hands.forEach(hand => {
-            hand.update(deltaTime);
-        });
-        deck.forEach(card => {
-            card.render();
-        });
-    }
+    hands.forEach(hand => {
+        hand.update(deltaTime);
+        hand.render();
+    });
 
     tableHand.update(deltaTime);
     tableHand.render();
@@ -454,13 +282,18 @@ channels.onDataReceived = (data, remoteId) => {
             }
         } else if (received.type === "playCard") {
             let remoteRank = channels.getJoinRank(remoteId);
-            let cardIndex = hands[remoteRank].getCardIndex(received.value, received.suit);
-            let card = hands[remoteRank].cards[cardIndex];
-            card.show();
-            card.animateFlip();
-            hands[remoteRank].removeCard(cardIndex);
-            card.animationSpeed = 0.005;
-            tableHand.addCard(card);
+            if (remoteRank == currentTurn && (
+                (firstRound && received.value == "A" && received.suit == "♠") ||
+                (newRound && !firstRound) ||
+                (!newRound && received.suit == currentRoundSuit) ||
+                (!newRound && !hands[remoteRank].containsCard("any", currentRoundSuit))
+            )) {
+                let cardIndex = hands[remoteRank].getCardIndex(received.value, received.suit);
+                let card = hands[remoteRank].cards[cardIndex];
+                hands[remoteRank].removeCard(cardIndex);
+                card.animationSpeed = 0.005;
+                tableHand.addCard(card);
+            }
         }
     } catch (e) { }
 };
