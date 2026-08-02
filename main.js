@@ -6,11 +6,6 @@ let prevTime = performance.now();
 let deltaTime = 0;
 let fps = 60;
 
-// let mouseX = 0;
-// let mouseY = 0;
-// let prevMouseDown = false;
-// let mouseDown = false;
-
 let gameSeed;
 
 const suits = ["♠", "♥", "♣", "♦"];
