@@ -1,6 +1,6 @@
 class Connector {
     constructor() {
-        this.socket = new WebSocket("wss://card-game-server-d67j.onrender.com//");
+        this.socket = new WebSocket("wss://card-game-server-d67j.onrender.com/");
         this.connectedRoom = null;
         this.roomIds = [];
         this.roomStarted = false;
